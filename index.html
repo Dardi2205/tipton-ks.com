@@ -324,10 +324,13 @@ async function loadOrders() {
       .select('*')
       .order('ts', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('LOAD ERROR:', JSON.stringify(error));
+      throw error;
+    }
     orders = data || [];
   } catch (e) {
-    console.error('Gabim gjatë ngarkimit:', e);
+    console.error('Gabim gjatë ngarkimit:', e.message || e);
     orders = [];
   }
   render();
@@ -335,12 +338,17 @@ async function loadOrders() {
 
 async function saveOrder(order) {
   try {
-    const { error } = await _supabase
+    const { data, error } = await _supabase
       .from('tiptoni')
       .upsert(order, { onConflict: 'id' });
-    if (error) throw error;
+    if (error) {
+      console.error('SAVE ERROR:', JSON.stringify(error));
+      showToast('Gabim: ' + error.message);
+      return;
+    }
+    console.log('SAVE OK:', JSON.stringify(data));
   } catch (e) {
-    console.error('Gabim gjatë ruajtjes:', e);
+    console.error('Gabim gjatë ruajtjes:', e.message || e);
     showToast('Gabim gjatë ruajtjes. Provo përsëri.');
   }
 }
@@ -351,9 +359,11 @@ async function deleteOrderFromDB(id) {
       .from('tiptoni')
       .delete()
       .eq('id', id);
-    if (error) throw error;
+    if (error) {
+      console.error('DELETE ERROR:', JSON.stringify(error));
+    }
   } catch (e) {
-    console.error('Gabim gjatë fshirjes:', e);
+    console.error('Gabim gjatë fshirjes:', e.message || e);
   }
 }
 
