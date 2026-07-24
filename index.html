@@ -2,7 +2,7 @@
 <html lang="sq">
 <head>
 <meta charset="UTF-8">
-<title>Porositë</title>
+<title>Porositë - Tipton KS</title>
 <style>
   :root {
     --bg: #14201b;
@@ -287,7 +287,13 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const SUPABASE_URL = 'https://audsawlpgaqdzpqfcviu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1ZHNhd2xwZ2FxZHpwcWZjdml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MjQxNzcsImV4cCI6MjEwMDUwMDE3N30.8ZD6LN5rwOtx-CqVfSzi8mpd63mqLtldJEdEg5fXPAw';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const STATUSES = [
   { key: 'e_re',       label: 'E re',                color: 'var(--amber)' },
   { key: 'ne_proces',  label: 'Në proces',            color: 'var(--teal)' },
@@ -295,7 +301,7 @@ const STATUSES = [
   { key: 'perfunduar', label: 'Dorëzuar / Anuluar',   color: 'var(--green)' },
 ];
 
-const SLACK_CHANNEL_ID = 'C0BKTKQ8ZDJ';
+const SLACK_WEBHOOK_URL = 'https://hooks.slack.com/triggers/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';
 
 let orders = [];
 
@@ -312,19 +318,41 @@ function showToast(msg) {
 
 async function loadOrders() {
   try {
-    const res = await window.storage.get('orders', true);
-    orders = res && res.value ? JSON.parse(res.value) : [];
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('ts', { ascending: false });
+
+    if (error) throw error;
+    orders = data || [];
   } catch (e) {
+    console.error('Gabim gjatë ngarkimit:', e);
     orders = [];
   }
   render();
 }
 
-async function saveOrders() {
+async function saveOrder(order) {
   try {
-    await window.storage.set('orders', JSON.stringify(orders), true);
+    const { error } = await supabase
+      .from('orders')
+      .upsert(order, { onConflict: 'id' });
+    if (error) throw error;
   } catch (e) {
+    console.error('Gabim gjatë ruajtjes:', e);
     showToast('Gabim gjatë ruajtjes. Provo përsëri.');
+  }
+}
+
+async function deleteOrderFromDB(id) {
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    console.error('Gabim gjatë fshirjes:', e);
   }
 }
 
@@ -336,7 +364,7 @@ function formatSlackMessage(o) {
     `*Produkti:* ${o.product}\n` +
     (o.address ? `*Adresa:* ${o.address}\n` : '') +
     `*Dorëzimi:* ${o.delivery}` +
-    (o.deliveryDate ? ` (${o.deliveryDate}${o.deliveryTime ? ' ' + o.deliveryTime : ''})` : '')
+    (o.delivery_date ? ` (${o.delivery_date}${o.delivery_time ? ' ' + o.delivery_time : ''})` : '')
   );
 }
 
@@ -353,161 +381,78 @@ async function sendOrderToSlack(orderId) {
   if (idx === -1) return;
   const o = orders[idx];
 
-  o.slackStatus = 'sending';
+  o.slack_status = 'sending';
   render();
 
   try {
     const message = formatSlackMessage(o);
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch(SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 500,
-        messages: [
-          {
-            role: "user",
-            content: `Use the slack_send_message tool to send the following message to Slack channel ID "${SLACK_CHANNEL_ID}". Send it exactly as written, do not add commentary before or after.\n\n${message}`
-          }
-        ],
-        mcp_servers: [
-          { type: "url", url: "https://mcp.slack.com/mcp", name: "slack-mcp" }
-        ]
-      })
+      body: JSON.stringify({ text: message })
     });
 
-    const data = await response.json();
-    const toolUse = (data.content || []).some(b => b.type === 'mcp_tool_use' && b.name && b.name.includes('send_message'));
-    const toolResult = (data.content || []).find(b => b.type === 'mcp_tool_result');
-    const failed = toolResult && toolResult.is_error;
-
-    if (toolUse && !failed) {
-      o.slackStatus = 'sent';
+    if (response.ok || response.status === 200) {
+      o.slack_status = 'sent';
       showToast('Porosia u dërgua në Slack.');
     } else {
-      o.slackStatus = 'failed';
+      o.slack_status = 'failed';
       showToast('S\'u dërgua dot në Slack. Provo "Dërgo në Slack" përsëri.');
     }
   } catch (e) {
-    o.slackStatus = 'failed';
+    o.slack_status = 'failed';
     showToast('Gabim lidhjeje me Slack. Provo përsëri.');
   }
 
-  saveOrders();
+  await saveOrder(o);
   render();
 }
 
 async function notifySlackRemoval(order) {
   try {
     const message = formatSlackRemovalMessage(order);
-    await fetch("https://api.anthropic.com/v1/messages", {
+    await fetch(SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 300,
-        messages: [
-          {
-            role: "user",
-            content: `Use the slack_send_message tool to send the following message to Slack channel ID "${SLACK_CHANNEL_ID}". Send it exactly as written, do not add commentary before or after.\n\n${message}`
-          }
-        ],
-        mcp_servers: [
-          { type: "url", url: "https://mcp.slack.com/mcp", name: "slack-mcp" }
-        ]
-      })
+      body: JSON.stringify({ text: message })
     });
-  } catch (e) {
-    // Best-effort notice; don't block local deletion on this.
-  }
+  } catch (e) {}
 }
 
 async function createCalendarEvent(orderId) {
   const idx = orders.findIndex(o => o.id === orderId);
   if (idx === -1) return;
   const o = orders[idx];
-  if (!o.deliveryDate) return;
-
-  o.calendarStatus = 'sending';
-  render();
+  if (!o.delivery_date) return;
 
   try {
-    const startTime = o.deliveryTime || '10:00';
-    const startISO = `${o.deliveryDate}T${startTime}:00`;
+    const startTime = o.delivery_time || '10:00';
+    const startISO = `${o.delivery_date}T${startTime}:00`.replace(/[-:]/g, '').replace('T', 'T');
     const [h, m] = startTime.split(':').map(Number);
     const endH = (h + 1) % 24;
-    const endISO = `${o.deliveryDate}T${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+    const endISO = `${o.delivery_date}T${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`.replace(/[-:]/g, '').replace('T', 'T');
 
-    const description = `Klienti: ${o.name}\nTelefoni: ${o.phone || '-'}\nProdukti: ${o.product}\nAdresa: ${o.address || '-'}\nDorëzimi: ${o.delivery}\nID: ${o.id}`;
+    const title = encodeURIComponent(`Porosi ${o.id} - ${o.product} (${o.name})`);
+    const description = encodeURIComponent(`Klienti: ${o.name}\nTelefoni: ${o.phone || '-'}\nProdukti: ${o.product}\nAdresa: ${o.address || '-'}\nDorëzimi: ${o.delivery}\nID: ${o.id}`);
+    const location = encodeURIComponent(o.address || 'Tipton KS');
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 500,
-        messages: [
-          {
-            role: "user",
-            content: `Use the create_event tool to create a Google Calendar event on the primary calendar with:\nTitle: Porosi ${o.id} - ${o.product} (${o.name})\nDescription: ${description}\nStart: ${startISO}\nEnd: ${endISO}\nTimezone: Europe/Belgrade\n\nAfter creating it, respond with ONLY a JSON object on a single line, nothing else: {"event_id": "<the created event's id>"}`
-          }
-        ],
-        mcp_servers: [
-          { type: "url", url: "https://calendarmcp.googleapis.com/mcp/v1", name: "calendar-mcp" }
-        ]
-      })
-    });
+    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startISO}/${endISO}&details=${description}&location=${location}&ctz=Europe/Belgrade`;
 
-    const data = await response.json();
-    const textBlock = (data.content || []).find(b => b.type === 'text');
-    let eventId = null;
-    if (textBlock) {
-      try {
-        const match = textBlock.text.match(/\{[^}]*\}/);
-        if (match) eventId = JSON.parse(match[0]).event_id;
-      } catch (e) {}
-    }
-
-    if (eventId) {
-      o.calendarEventId = eventId;
-      o.calendarStatus = 'sent';
-      showToast('Ngjarja u shtua në Google Calendar.');
-    } else {
-      o.calendarStatus = 'failed';
-      showToast('S\'u shtua dot në Calendar. Provo përsëri.');
-    }
+    window.open(calUrl, '_blank');
+    o.calendar_status = 'sent';
+    o.calendar_event_id = 'link-sent';
+    showToast('Hape linkun për të shtuar në Calendar.');
   } catch (e) {
-    o.calendarStatus = 'failed';
-    showToast('Gabim lidhjeje me Google Calendar.');
+    o.calendar_status = 'failed';
+    showToast('Gabim gjatë krijimit të linkut.');
   }
 
-  saveOrders();
+  await saveOrder(o);
   render();
 }
 
 async function deleteCalendarEvent(eventId) {
   if (!eventId) return;
-  try {
-    await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 300,
-        messages: [
-          {
-            role: "user",
-            content: `Use the delete_event tool to delete the Google Calendar event with ID "${eventId}" from the primary calendar.`
-          }
-        ],
-        mcp_servers: [
-          { type: "url", url: "https://calendarmcp.googleapis.com/mcp/v1", name: "calendar-mcp" }
-        ]
-      })
-    });
-  } catch (e) {
-    // Best-effort; local deletion already happened.
-  }
 }
 
 function addOrder() {
@@ -516,8 +461,8 @@ function addOrder() {
   const product = document.getElementById('in-product').value.trim();
   const address = document.getElementById('in-address').value.trim();
   const delivery = document.getElementById('in-delivery').value;
-  const deliveryDate = document.getElementById('in-date').value;
-  const deliveryTime = document.getElementById('in-time').value;
+  const delivery_date = document.getElementById('in-date').value;
+  const delivery_time = document.getElementById('in-time').value;
 
   if (!name || !product) {
     showToast('Shkruaj të paktën emrin dhe produktin.');
@@ -530,11 +475,11 @@ function addOrder() {
 
   const newOrder = {
     id: uid(),
-    name, phone, product, address, delivery, deliveryDate, deliveryTime,
+    name, phone, product, address, delivery, delivery_date, delivery_time,
     status: 'e_re',
-    slackStatus: 'idle',
-    calendarStatus: 'idle',
-    calendarEventId: null,
+    slack_status: 'idle',
+    calendar_status: 'idle',
+    calendar_event_id: null,
     ts: Date.now()
   };
   orders.unshift(newOrder);
@@ -546,11 +491,11 @@ function addOrder() {
   document.getElementById('in-date').value = '';
   document.getElementById('in-time').value = '';
 
-  saveOrders();
+  saveOrder(newOrder);
   render();
   showToast('Porosia u shtua. Duke e dërguar në Slack…');
   sendOrderToSlack(newOrder.id);
-  if (deliveryDate) createCalendarEvent(newOrder.id);
+  if (delivery_date) createCalendarEvent(newOrder.id);
 }
 
 function moveOrder(id, dir) {
@@ -560,7 +505,7 @@ function moveOrder(id, dir) {
   const nextIdx = curStatusIdx + dir;
   if (nextIdx < 0 || nextIdx >= STATUSES.length) return;
   orders[idx].status = STATUSES[nextIdx].key;
-  saveOrders();
+  saveOrder(orders[idx]);
   render();
 }
 
@@ -580,13 +525,13 @@ function deleteOrder(id) {
   const order = orders.find(o => o.id === id);
   orders = orders.filter(o => o.id !== id);
   pendingDeleteId = null;
-  saveOrders();
+  deleteOrderFromDB(id);
   render();
   showToast('Porosia u fshi. Duke njoftuar Slack/Calendar…');
 
   if (order) {
     notifySlackRemoval(order);
-    if (order.calendarEventId) deleteCalendarEvent(order.calendarEventId);
+    if (order.calendar_event_id) deleteCalendarEvent(order.calendar_event_id);
   }
 }
 
@@ -610,17 +555,17 @@ function saveEdit(id) {
   const product = document.getElementById('edit-product-' + id).value.trim();
   const address = document.getElementById('edit-address-' + id).value.trim();
   const delivery = document.getElementById('edit-delivery-' + id).value;
-  const deliveryDate = document.getElementById('edit-date-' + id).value;
-  const deliveryTime = document.getElementById('edit-time-' + id).value;
+  const delivery_date = document.getElementById('edit-date-' + id).value;
+  const delivery_time = document.getElementById('edit-time-' + id).value;
 
   if (!name || !product) {
     showToast('Emri dhe produkti nuk mund të jenë bosh.');
     return;
   }
 
-  orders[idx] = { ...orders[idx], name, phone, product, address, delivery, deliveryDate, deliveryTime };
+  orders[idx] = { ...orders[idx], name, phone, product, address, delivery, delivery_date, delivery_time };
   editingId = null;
-  saveOrders();
+  saveOrder(orders[idx]);
   render();
   showToast('Porosia u përditësua.');
 }
@@ -645,16 +590,16 @@ function matchesSearch(o, q) {
 }
 
 function calBadge(o) {
-  if (o.calendarStatus === 'sent') return `<span class="cal-badge">✓ Cal</span>`;
-  if (o.calendarStatus === 'sending') return `<span class="cal-badge pending">…Cal</span>`;
-  if (o.calendarStatus === 'failed') return `<span class="cal-badge pending">✕ Cal</span>`;
+  if (o.calendar_status === 'sent') return `<span class="cal-badge">✓ Cal</span>`;
+  if (o.calendar_status === 'sending') return `<span class="cal-badge pending">…Cal</span>`;
+  if (o.calendar_status === 'failed') return `<span class="cal-badge pending">✕ Cal</span>`;
   return '';
 }
 
 function slackBadge(o) {
-  if (o.slackStatus === 'sent') return `<span class="slack-badge">✓ Slack</span>`;
-  if (o.slackStatus === 'sending') return `<span class="slack-badge pending">…Slack</span>`;
-  if (o.slackStatus === 'failed') return `<span class="slack-badge pending">✕ Slack</span>`;
+  if (o.slack_status === 'sent') return `<span class="slack-badge">✓ Slack</span>`;
+  if (o.slack_status === 'sending') return `<span class="slack-badge pending">…Slack</span>`;
+  if (o.slack_status === 'failed') return `<span class="slack-badge pending">✕ Slack</span>`;
   return '';
 }
 
@@ -699,8 +644,8 @@ function render() {
             <option value="Dërgesë në adresë" ${o.delivery === 'Dërgesë në adresë' ? 'selected' : ''}>Dërgesë në adresë</option>
             <option value="Marrje në dyqan" ${o.delivery === 'Marrje në dyqan' ? 'selected' : ''}>Marrje në dyqan</option>
           </select>
-          <input class="edit-field" type="date" id="edit-date-${o.id}" value="${o.deliveryDate || ''}" />
-          <input class="edit-field" type="time" id="edit-time-${o.id}" value="${o.deliveryTime || ''}" />
+          <input class="edit-field" type="date" id="edit-date-${o.id}" value="${o.delivery_date || ''}" />
+          <input class="edit-field" type="time" id="edit-time-${o.id}" value="${o.delivery_time || ''}" />
           <div class="card-actions"></div>
         `;
         const actions = card.querySelector('.card-actions');
@@ -728,7 +673,7 @@ function render() {
           ${o.phone ? `📞 ${escapeHtml(o.phone)}<br>` : ''}
           ${o.delivery ? `🚚 ${escapeHtml(o.delivery)}<br>` : ''}
           ${o.address ? `📍 ${escapeHtml(o.address)}<br>` : ''}
-          ${o.deliveryDate ? `🗓 ${o.deliveryDate}${o.deliveryTime ? ' ' + o.deliveryTime : ''}` : ''}
+          ${o.delivery_date ? `🗓 ${o.delivery_date}${o.delivery_time ? ' ' + o.delivery_time : ''}` : ''}
         </div>
         <div class="card-actions"></div>
       `;
@@ -757,8 +702,8 @@ function render() {
 
       const slackBtn = document.createElement('button');
       slackBtn.className = 'mini-btn';
-      slackBtn.textContent = o.slackStatus === 'sending' ? 'Duke dërguar…' : 'Dërgo në Slack';
-      slackBtn.disabled = o.slackStatus === 'sending';
+      slackBtn.textContent = o.slack_status === 'sending' ? 'Duke dërguar…' : 'Dërgo në Slack';
+      slackBtn.disabled = o.slack_status === 'sending';
       slackBtn.onclick = () => sendOrderToSlack(o.id);
       actions.appendChild(slackBtn);
 
@@ -809,6 +754,13 @@ function escapeHtml(s) {
 }
 
 loadOrders();
+
+supabase
+  .channel('orders-changes')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+    loadOrders();
+  })
+  .subscribe();
 </script>
 </body>
 </html>
