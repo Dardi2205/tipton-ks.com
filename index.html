@@ -319,7 +319,7 @@ function showToast(msg) {
 async function loadOrders() {
   try {
     const { data, error } = await _supabase
-      .from('orders')
+      .from('tiptoni')
       .select('*')
       .order('ts', { ascending: false });
 
@@ -335,7 +335,7 @@ async function loadOrders() {
 async function saveOrder(order) {
   try {
     const { error } = await _supabase
-      .from('orders')
+      .from('tiptoni')
       .upsert(order, { onConflict: 'id' });
     if (error) throw error;
   } catch (e) {
@@ -347,7 +347,7 @@ async function saveOrder(order) {
 async function deleteOrderFromDB(id) {
   try {
     const { error } = await _supabase
-      .from('orders')
+      .from('tiptoni')
       .delete()
       .eq('id', id);
     if (error) throw error;
@@ -757,7 +757,7 @@ loadOrders();
 
 _supabase
   .channel('orders-changes')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'tiptoni' }, (payload) => {
     loadOrders();
   })
   .subscribe();
