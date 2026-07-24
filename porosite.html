@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<title>Porositë</title>
+<style>
+  :root {
+    --bg: #14201b;
+    --panel: #1b2a24;
+    --panel-raised: #223530;
+    --line: #2f4740;
+    --copper: #c08552;
+    --copper-bright: #d99a63;
+    --teal: #5fa89a;
+    --ink: #eee8dd;
+    --ink-dim: #9fb0aa;
+    --red: #c1665a;
+    --amber: #d9b35c;
+    --green: #6fae7f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+  }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; opacity: .03;
+    background-image: radial-gradient(circle, #fff 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 28px 24px 60px; position: relative; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px; margin-bottom: 24px;
+    flex-wrap: wrap; gap: 14px;
+  }
+  .brand-mark {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 3px; color: var(--copper);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  h1 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 30px; font-weight: 700; margin: 0; letter-spacing: -0.5px;
+  }
+  .stats { display: flex; gap: 22px; font-family: 'IBM Plex Mono', monospace; }
+  .stat { text-align: right; }
+  .stat .n { font-size: 22px; color: var(--copper-bright); font-weight: 600; }
+  .stat .l { font-size: 10px; color: var(--ink-dim); letter-spacing: 1.5px; text-transform: uppercase; }
+
+  .slack-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px; color: var(--ink-dim);
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 18px;
+  }
+  .slack-status .sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+
+  .add-panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 28px;
+  }
+  .add-panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--teal); margin-bottom: 14px;
+  }
+  .add-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1.3fr 1.3fr 1fr 0.9fr 0.8fr auto;
+    gap: 10px;
+  }
+  @media (max-width: 1200px) { .add-grid { grid-template-columns: 1fr 1fr; } }
+
+  input, select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--copper); }
+  input::placeholder { color: var(--ink-dim); }
+
+  .btn {
+    background: var(--copper);
+    color: #14201b;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .btn:hover { background: var(--copper-bright); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  .btn-ghost {
+    background: transparent; color: var(--ink-dim); border: 1px solid var(--line);
+  }
+  .btn-ghost:hover { color: var(--ink); border-color: var(--copper); }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .board { grid-template-columns: 1fr; } }
+
+  .col {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 200px;
+  }
+  .col-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .col-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink);
+  }
+  .col-count {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-dim); font-size: 12px;
+  }
+
+  .card {
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 12px 10px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute; top: -1px; left: 14px; right: 14px; height: 1px;
+    background: repeating-linear-gradient(90deg, var(--copper) 0 4px, transparent 4px 8px);
+    opacity: .5;
+  }
+  .card-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--ink-dim); letter-spacing: 1px;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .slack-badge {
+    font-size: 9px; padding: 1px 5px; border-radius: 3px;
+    background: rgba(95,168,154,0.15); color: var(--teal);
+    border: 1px solid rgba(95,168,154,0.4);
+  }
+  .slack-badge.pending { color: var(--amber); border-color: rgba(217,179,92,0.4); background: rgba(217,179,92,0.12); }
+  .cal-badge {
+    font-size: 9px; padding: 1px 5px; border-radius: 3px;
+    background: rgba(192,133,82,0.15); color: var(--copper-bright);
+    border: 1px solid rgba(192,133,82,0.4);
+  }
+  .cal-badge.pending { color: var(--amber); border-color: rgba(217,179,92,0.4); background: rgba(217,179,92,0.12); }
+  .card-name { font-weight: 600; font-size: 14.5px; margin-bottom: 2px; }
+  .card-product { color: var(--copper-bright); font-size: 13px; margin-bottom: 6px; }
+  .card-meta {
+    font-size: 12px; color: var(--ink-dim); line-height: 1.6;
+    margin-bottom: 10px;
+  }
+  .card-meta a { color: var(--teal); text-decoration: none; }
+  .card-actions {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding-top: 8px; border-top: 1px solid var(--line);
+  }
+  .mini-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    letter-spacing: .5px;
+  }
+  .mini-btn:hover { color: var(--ink); border-color: var(--teal); }
+  .mini-btn.danger:hover { color: var(--red); border-color: var(--red); }
+  .mini-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .empty {
+    color: var(--ink-dim); font-size: 12.5px;
+    text-align: center; padding: 20px 8px;
+    font-style: italic;
+  }
+  .loading { text-align: center; color: var(--ink-dim); padding: 60px; font-family: 'IBM Plex Mono', monospace; }
+  .toolbar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .toolbar input { max-width: 280px; }
+  .toolbar .count-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--ink-dim);
+  }
+  .mini-btn.confirm-danger {
+    background: var(--red); color: #14201b; border-color: var(--red);
+    font-weight: 700;
+  }
+  .card.editing { border-color: var(--copper); }
+  .edit-field {
+    background: var(--bg); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 5px; padding: 6px 8px; font-size: 13px; width: 100%;
+    margin-bottom: 6px; font-family: inherit;
+  }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-raised); border: 1px solid var(--copper);
+    color: var(--ink); padding: 10px 18px; border-radius: 8px;
+    font-size: 13px; font-family: 'IBM Plex Mono', monospace;
+    opacity: 0; transition: opacity .25s; pointer-events: none;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand-mark">Panel i porosive</div>
+      <h1>Dyqani Elektronik</h1>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="slack-status">
+    <div class="sdot"></div>
+    Çdo porosi e re dërgohet automatikisht te kanali Slack #all-puna
+  </div>
+
+  <div class="add-panel">
+    <div class="add-panel-title">+ Shto porosi të re</div>
+    <div class="add-grid">
+      <input id="in-name" placeholder="Emri i klientit" />
+      <input id="in-phone" placeholder="Telefoni" />
+      <input id="in-product" placeholder="Produkti (p.sh. TV Samsung 55&quot;)" />
+      <input id="in-address" placeholder="Adresa e dërgesës" />
+      <select id="in-delivery">
+        <option value="Dërgesë në adresë">Dërgesë në adresë</option>
+        <option value="Marrje në dyqan">Marrje në dyqan</option>
+      </select>
+      <input id="in-date" type="date" />
+      <input id="in-time" type="time" />
+      <button class="btn" onclick="addOrder()">Shto</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input id="search" placeholder="Kërko sipas emrit, telefonit, produktit ose adresës…" oninput="render()" />
+    <span class="count-tag" id="search-count"></span>
+  </div>
+
+  <div id="board" class="board">
+    <div class="loading">Duke ngarkuar porositë…</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUSES = [
+  { key: 'e_re',       label: 'E re',                color: 'var(--amber)' },
+  { key: 'ne_proces',  label: 'Në proces',            color: 'var(--teal)' },
+  { key: 'gati',       label: 'Gati',                 color: 'var(--copper-bright)' },
+  { key: 'perfunduar', label: 'Dorëzuar / Anuluar',   color: 'var(--green)' },
+];
+
+const SLACK_CHANNEL_ID = 'C0BKTKQ8ZDJ';
+
+let orders = [];
+
+function uid() {
+  return 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function loadOrders() {
+  try {
+    const res = await window.storage.get('orders', true);
+    orders = res && res.value ? JSON.parse(res.value) : [];
+  } catch (e) {
+    orders = [];
+  }
+  render();
+}
+
+async function saveOrders() {
+  try {
+    await window.storage.set('orders', JSON.stringify(orders), true);
+  } catch (e) {
+    showToast('Gabim gjatë ruajtjes. Provo përsëri.');
+  }
+}
+
+function formatSlackMessage(o) {
+  return (
+    `📦 *Porosi e re* — ${o.id}\n` +
+    `*Klienti:* ${o.name}\n` +
+    (o.phone ? `*Telefoni:* ${o.phone}\n` : '') +
+    `*Produkti:* ${o.product}\n` +
+    (o.address ? `*Adresa:* ${o.address}\n` : '') +
+    `*Dorëzimi:* ${o.delivery}` +
+    (o.deliveryDate ? ` (${o.deliveryDate}${o.deliveryTime ? ' ' + o.deliveryTime : ''})` : '')
+  );
+}
+
+function formatSlackRemovalMessage(o) {
+  return (
+    `✅ *Porosia u përfundua / u hoq* — ${o.id}\n` +
+    `*Klienti:* ${o.name}\n` +
+    `*Produkti:* ${o.product}`
+  );
+}
+
+async function sendOrderToSlack(orderId) {
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx === -1) return;
+  const o = orders[idx];
+
+  o.slackStatus = 'sending';
+  render();
+
+  try {
+    const message = formatSlackMessage(o);
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 500,
+        messages: [
+          {
+            role: "user",
+            content: `Use the slack_send_message tool to send the following message to Slack channel ID "${SLACK_CHANNEL_ID}". Send it exactly as written, do not add commentary before or after.\n\n${message}`
+          }
+        ],
+        mcp_servers: [
+          { type: "url", url: "https://mcp.slack.com/mcp", name: "slack-mcp" }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const toolUse = (data.content || []).some(b => b.type === 'mcp_tool_use' && b.name && b.name.includes('send_message'));
+    const toolResult = (data.content || []).find(b => b.type === 'mcp_tool_result');
+    const failed = toolResult && toolResult.is_error;
+
+    if (toolUse && !failed) {
+      o.slackStatus = 'sent';
+      showToast('Porosia u dërgua në Slack.');
+    } else {
+      o.slackStatus = 'failed';
+      showToast('S\'u dërgua dot në Slack. Provo "Dërgo në Slack" përsëri.');
+    }
+  } catch (e) {
+    o.slackStatus = 'failed';
+    showToast('Gabim lidhjeje me Slack. Provo përsëri.');
+  }
+
+  saveOrders();
+  render();
+}
+
+async function notifySlackRemoval(order) {
+  try {
+    const message = formatSlackRemovalMessage(order);
+    await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "user",
+            content: `Use the slack_send_message tool to send the following message to Slack channel ID "${SLACK_CHANNEL_ID}". Send it exactly as written, do not add commentary before or after.\n\n${message}`
+          }
+        ],
+        mcp_servers: [
+          { type: "url", url: "https://mcp.slack.com/mcp", name: "slack-mcp" }
+        ]
+      })
+    });
+  } catch (e) {
+    // Best-effort notice; don't block local deletion on this.
+  }
+}
+
+async function createCalendarEvent(orderId) {
+  const idx = orders.findIndex(o => o.id === orderId);
+  if (idx === -1) return;
+  const o = orders[idx];
+  if (!o.deliveryDate) return;
+
+  o.calendarStatus = 'sending';
+  render();
+
+  try {
+    const startTime = o.deliveryTime || '10:00';
+    const startISO = `${o.deliveryDate}T${startTime}:00`;
+    const [h, m] = startTime.split(':').map(Number);
+    const endH = (h + 1) % 24;
+    const endISO = `${o.deliveryDate}T${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+
+    const description = `Klienti: ${o.name}\nTelefoni: ${o.phone || '-'}\nProdukti: ${o.product}\nAdresa: ${o.address || '-'}\nDorëzimi: ${o.delivery}\nID: ${o.id}`;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 500,
+        messages: [
+          {
+            role: "user",
+            content: `Use the create_event tool to create a Google Calendar event on the primary calendar with:\nTitle: Porosi ${o.id} - ${o.product} (${o.name})\nDescription: ${description}\nStart: ${startISO}\nEnd: ${endISO}\nTimezone: Europe/Belgrade\n\nAfter creating it, respond with ONLY a JSON object on a single line, nothing else: {"event_id": "<the created event's id>"}`
+          }
+        ],
+        mcp_servers: [
+          { type: "url", url: "https://calendarmcp.googleapis.com/mcp/v1", name: "calendar-mcp" }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const textBlock = (data.content || []).find(b => b.type === 'text');
+    let eventId = null;
+    if (textBlock) {
+      try {
+        const match = textBlock.text.match(/\{[^}]*\}/);
+        if (match) eventId = JSON.parse(match[0]).event_id;
+      } catch (e) {}
+    }
+
+    if (eventId) {
+      o.calendarEventId = eventId;
+      o.calendarStatus = 'sent';
+      showToast('Ngjarja u shtua në Google Calendar.');
+    } else {
+      o.calendarStatus = 'failed';
+      showToast('S\'u shtua dot në Calendar. Provo përsëri.');
+    }
+  } catch (e) {
+    o.calendarStatus = 'failed';
+    showToast('Gabim lidhjeje me Google Calendar.');
+  }
+
+  saveOrders();
+  render();
+}
+
+async function deleteCalendarEvent(eventId) {
+  if (!eventId) return;
+  try {
+    await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "user",
+            content: `Use the delete_event tool to delete the Google Calendar event with ID "${eventId}" from the primary calendar.`
+          }
+        ],
+        mcp_servers: [
+          { type: "url", url: "https://calendarmcp.googleapis.com/mcp/v1", name: "calendar-mcp" }
+        ]
+      })
+    });
+  } catch (e) {
+    // Best-effort; local deletion already happened.
+  }
+}
+
+function addOrder() {
+  const name = document.getElementById('in-name').value.trim();
+  const phone = document.getElementById('in-phone').value.trim();
+  const product = document.getElementById('in-product').value.trim();
+  const address = document.getElementById('in-address').value.trim();
+  const delivery = document.getElementById('in-delivery').value;
+  const deliveryDate = document.getElementById('in-date').value;
+  const deliveryTime = document.getElementById('in-time').value;
+
+  if (!name || !product) {
+    showToast('Shkruaj të paktën emrin dhe produktin.');
+    return;
+  }
+  if (delivery === 'Dërgesë në adresë' && !address) {
+    showToast('Shto adresën, ose zgjidh "Marrje në dyqan".');
+    return;
+  }
+
+  const newOrder = {
+    id: uid(),
+    name, phone, product, address, delivery, deliveryDate, deliveryTime,
+    status: 'e_re',
+    slackStatus: 'idle',
+    calendarStatus: 'idle',
+    calendarEventId: null,
+    ts: Date.now()
+  };
+  orders.unshift(newOrder);
+
+  document.getElementById('in-name').value = '';
+  document.getElementById('in-phone').value = '';
+  document.getElementById('in-product').value = '';
+  document.getElementById('in-address').value = '';
+  document.getElementById('in-date').value = '';
+  document.getElementById('in-time').value = '';
+
+  saveOrders();
+  render();
+  showToast('Porosia u shtua. Duke e dërguar në Slack…');
+  sendOrderToSlack(newOrder.id);
+  if (deliveryDate) createCalendarEvent(newOrder.id);
+}
+
+function moveOrder(id, dir) {
+  const idx = orders.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  const curStatusIdx = STATUSES.findIndex(s => s.key === orders[idx].status);
+  const nextIdx = curStatusIdx + dir;
+  if (nextIdx < 0 || nextIdx >= STATUSES.length) return;
+  orders[idx].status = STATUSES[nextIdx].key;
+  saveOrders();
+  render();
+}
+
+let pendingDeleteId = null;
+
+function requestDelete(id) {
+  pendingDeleteId = id;
+  render();
+}
+
+function cancelDelete() {
+  pendingDeleteId = null;
+  render();
+}
+
+function deleteOrder(id) {
+  const order = orders.find(o => o.id === id);
+  orders = orders.filter(o => o.id !== id);
+  pendingDeleteId = null;
+  saveOrders();
+  render();
+  showToast('Porosia u fshi. Duke njoftuar Slack/Calendar…');
+
+  if (order) {
+    notifySlackRemoval(order);
+    if (order.calendarEventId) deleteCalendarEvent(order.calendarEventId);
+  }
+}
+
+let editingId = null;
+
+function startEdit(id) {
+  editingId = id;
+  render();
+}
+
+function cancelEdit() {
+  editingId = null;
+  render();
+}
+
+function saveEdit(id) {
+  const idx = orders.findIndex(o => o.id === id);
+  if (idx === -1) return;
+  const name = document.getElementById('edit-name-' + id).value.trim();
+  const phone = document.getElementById('edit-phone-' + id).value.trim();
+  const product = document.getElementById('edit-product-' + id).value.trim();
+  const address = document.getElementById('edit-address-' + id).value.trim();
+  const delivery = document.getElementById('edit-delivery-' + id).value;
+  const deliveryDate = document.getElementById('edit-date-' + id).value;
+  const deliveryTime = document.getElementById('edit-time-' + id).value;
+
+  if (!name || !product) {
+    showToast('Emri dhe produkti nuk mund të jenë bosh.');
+    return;
+  }
+
+  orders[idx] = { ...orders[idx], name, phone, product, address, delivery, deliveryDate, deliveryTime };
+  editingId = null;
+  saveOrders();
+  render();
+  showToast('Porosia u përditësua.');
+}
+
+function timeAgo(ts) {
+  const diffMin = Math.floor((Date.now() - ts) / 60000);
+  if (diffMin < 1) return 'tani';
+  if (diffMin < 60) return diffMin + ' min më parë';
+  const h = Math.floor(diffMin / 60);
+  if (h < 24) return h + ' orë më parë';
+  const d = Math.floor(h / 24);
+  return d + ' ditë më parë';
+}
+
+function matchesSearch(o, q) {
+  if (!q) return true;
+  q = q.toLowerCase();
+  return (o.name && o.name.toLowerCase().includes(q)) ||
+         (o.phone && o.phone.toLowerCase().includes(q)) ||
+         (o.product && o.product.toLowerCase().includes(q)) ||
+         (o.address && o.address.toLowerCase().includes(q));
+}
+
+function calBadge(o) {
+  if (o.calendarStatus === 'sent') return `<span class="cal-badge">✓ Cal</span>`;
+  if (o.calendarStatus === 'sending') return `<span class="cal-badge pending">…Cal</span>`;
+  if (o.calendarStatus === 'failed') return `<span class="cal-badge pending">✕ Cal</span>`;
+  return '';
+}
+
+function slackBadge(o) {
+  if (o.slackStatus === 'sent') return `<span class="slack-badge">✓ Slack</span>`;
+  if (o.slackStatus === 'sending') return `<span class="slack-badge pending">…Slack</span>`;
+  if (o.slackStatus === 'failed') return `<span class="slack-badge pending">✕ Slack</span>`;
+  return '';
+}
+
+function render() {
+  const board = document.getElementById('board');
+  const query = (document.getElementById('search') && document.getElementById('search').value || '').trim();
+  board.innerHTML = '';
+
+  let totalShown = 0;
+
+  STATUSES.forEach((status, colIdx) => {
+    const col = document.createElement('div');
+    col.className = 'col';
+
+    const items = orders.filter(o => o.status === status.key && matchesSearch(o, query));
+    totalShown += items.length;
+
+    col.innerHTML = `
+      <div class="col-head">
+        <div class="dot" style="background:${status.color}"></div>
+        <div class="col-title">${status.label}</div>
+        <div class="col-count">${items.length}</div>
+      </div>
+    `;
+
+    if (items.length === 0) {
+      col.innerHTML += `<div class="empty">${query ? 'Asnjë rezultat' : 'Asnjë porosi këtu'}</div>`;
+    }
+
+    items.forEach(o => {
+      const card = document.createElement('div');
+      card.className = 'card' + (editingId === o.id ? ' editing' : '');
+
+      if (editingId === o.id) {
+        card.innerHTML = `
+          <div class="card-id">${o.id} · ${timeAgo(o.ts)}</div>
+          <input class="edit-field" id="edit-name-${o.id}" value="${escapeAttr(o.name)}" placeholder="Emri" />
+          <input class="edit-field" id="edit-phone-${o.id}" value="${escapeAttr(o.phone)}" placeholder="Telefoni" />
+          <input class="edit-field" id="edit-product-${o.id}" value="${escapeAttr(o.product)}" placeholder="Produkti" />
+          <input class="edit-field" id="edit-address-${o.id}" value="${escapeAttr(o.address)}" placeholder="Adresa" />
+          <select class="edit-field" id="edit-delivery-${o.id}">
+            <option value="Dërgesë në adresë" ${o.delivery === 'Dërgesë në adresë' ? 'selected' : ''}>Dërgesë në adresë</option>
+            <option value="Marrje në dyqan" ${o.delivery === 'Marrje në dyqan' ? 'selected' : ''}>Marrje në dyqan</option>
+          </select>
+          <input class="edit-field" type="date" id="edit-date-${o.id}" value="${o.deliveryDate || ''}" />
+          <input class="edit-field" type="time" id="edit-time-${o.id}" value="${o.deliveryTime || ''}" />
+          <div class="card-actions"></div>
+        `;
+        const actions = card.querySelector('.card-actions');
+        const save = document.createElement('button');
+        save.className = 'mini-btn confirm-danger';
+        save.style.background = 'var(--green)';
+        save.style.borderColor = 'var(--green)';
+        save.textContent = 'Ruaj';
+        save.onclick = () => saveEdit(o.id);
+        const cancel = document.createElement('button');
+        cancel.className = 'mini-btn';
+        cancel.textContent = 'Anulo';
+        cancel.onclick = () => cancelEdit();
+        actions.appendChild(save);
+        actions.appendChild(cancel);
+        col.appendChild(card);
+        return;
+      }
+
+      card.innerHTML = `
+        <div class="card-id">${o.id} · ${timeAgo(o.ts)} ${slackBadge(o)} ${calBadge(o)}</div>
+        <div class="card-name">${escapeHtml(o.name)}</div>
+        <div class="card-product">${escapeHtml(o.product)}</div>
+        <div class="card-meta">
+          ${o.phone ? `📞 ${escapeHtml(o.phone)}<br>` : ''}
+          ${o.delivery ? `🚚 ${escapeHtml(o.delivery)}<br>` : ''}
+          ${o.address ? `📍 ${escapeHtml(o.address)}<br>` : ''}
+          ${o.deliveryDate ? `🗓 ${o.deliveryDate}${o.deliveryTime ? ' ' + o.deliveryTime : ''}` : ''}
+        </div>
+        <div class="card-actions"></div>
+      `;
+      const actions = card.querySelector('.card-actions');
+
+      if (colIdx > 0) {
+        const back = document.createElement('button');
+        back.className = 'mini-btn';
+        back.textContent = '← Kthe';
+        back.onclick = () => moveOrder(o.id, -1);
+        actions.appendChild(back);
+      }
+      if (colIdx < STATUSES.length - 1) {
+        const fwd = document.createElement('button');
+        fwd.className = 'mini-btn';
+        fwd.textContent = 'Përpara →';
+        fwd.onclick = () => moveOrder(o.id, 1);
+        actions.appendChild(fwd);
+      }
+
+      const edit = document.createElement('button');
+      edit.className = 'mini-btn';
+      edit.textContent = 'Redakto';
+      edit.onclick = () => startEdit(o.id);
+      actions.appendChild(edit);
+
+      const slackBtn = document.createElement('button');
+      slackBtn.className = 'mini-btn';
+      slackBtn.textContent = o.slackStatus === 'sending' ? 'Duke dërguar…' : 'Dërgo në Slack';
+      slackBtn.disabled = o.slackStatus === 'sending';
+      slackBtn.onclick = () => sendOrderToSlack(o.id);
+      actions.appendChild(slackBtn);
+
+      if (pendingDeleteId === o.id) {
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'mini-btn confirm-danger';
+        confirmBtn.textContent = 'Konfirmo fshirjen';
+        confirmBtn.onclick = () => deleteOrder(o.id);
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'mini-btn';
+        cancelBtn.textContent = 'Anulo';
+        cancelBtn.onclick = () => cancelDelete();
+        actions.appendChild(confirmBtn);
+        actions.appendChild(cancelBtn);
+      } else {
+        const del = document.createElement('button');
+        del.className = 'mini-btn danger';
+        del.textContent = 'Fshi';
+        del.onclick = () => requestDelete(o.id);
+        actions.appendChild(del);
+      }
+
+      col.appendChild(card);
+    });
+
+    board.appendChild(col);
+  });
+
+  const searchCountEl = document.getElementById('search-count');
+  if (searchCountEl) {
+    searchCountEl.textContent = query ? `${totalShown} rezultat(e)` : '';
+  }
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${orders.length}</div><div class="l">Gjithsej</div></div>
+    <div class="stat"><div class="n">${orders.filter(o=>o.status==='e_re').length}</div><div class="l">Të reja</div></div>
+  `;
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s || '').replace(/"/g, '&quot;');
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+loadOrders();
+</script>
+</body>
+</html>
