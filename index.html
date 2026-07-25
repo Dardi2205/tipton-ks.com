@@ -399,12 +399,16 @@ async function sendOrderToSlack(orderId) {
     const response = await fetch(SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: message }),
-      mode: "no-cors"
+      body: JSON.stringify({ text: message })
     });
 
-    o.slack_status = 'sent';
-    showToast('Porosia u dërgua në Slack.');
+    if (response.ok) {
+      o.slack_status = 'sent';
+      showToast('Porosia u dërgua në Slack.');
+    } else {
+      o.slack_status = 'failed';
+      showToast('S\'u dërgua dot në Slack. Provo "Dërgo në Slack" përsëri.');
+    }
   } catch (e) {
     o.slack_status = 'failed';
     showToast('Gabim lidhjeje me Slack. Provo përsëri.');
@@ -420,8 +424,7 @@ async function notifySlackRemoval(order) {
     await fetch(SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: message }),
-      mode: "no-cors"
+      body: JSON.stringify({ text: message })
     });
   } catch (e) {}
 }
