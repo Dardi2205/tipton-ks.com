@@ -287,13 +287,12 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 const SUPABASE_URL = 'https://audsawlpgaqdzpqfcviu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1ZHNhd2xwZ2FxZHpwcWZjdml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MjQxNzcsImV4cCI6MjEwMDUwMDE3N30.8ZD6LN5rwOtx-CqVfSzi8mpd63mqLtldJEdEg5fXPAw';
 
-const { createClient } = supabase;
-const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const STATUSES = [
   { key: 'e_re',       label: 'E re',                color: 'var(--amber)' },
