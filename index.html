@@ -517,6 +517,23 @@ function moveOrder(id, dir) {
   orders[idx].status = STATUSES[nextIdx].key;
   saveOrder(orders[idx]);
   render();
+
+  if (STATUSES[nextIdx].key === 'perfunduar') {
+    const o = orders[idx];
+    const msg = `:white_check_mark: *Porosia u përfundua — ${o.id}\n*Klienti:* ${o.name}\n*Produkti:* ${o.product}`;
+    fetch(SLACK_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: msg })
+    }).catch(() => {});
+
+    setTimeout(() => {
+      orders = orders.filter(or => or.id !== id);
+      deleteOrderFromDB(id);
+      render();
+      showToast('Porosia u përfundua dhe u hoq nga lista.');
+    }, 5000);
+  }
 }
 
 let pendingDeleteId = null;
