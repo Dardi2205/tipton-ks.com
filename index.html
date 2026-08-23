@@ -445,9 +445,9 @@ async function createCalendarEvent(orderId) {
     const title = encodeURIComponent(`Porosi ${o.id} - ${o.product} (${o.name})`);
     const description = encodeURIComponent(`Klienti: ${o.name}\nTelefoni: ${o.phone || '-'}\nProdukti: ${o.product}\nAdresa: ${o.address || '-'}\nDorëzimi: ${o.delivery}\nID: ${o.id}`);
     const location = encodeURIComponent(o.address || 'Tipton KS');
-    const guests = 'dardi.2205@protonmail.com';
+    const sharedCal = '898a4c998076062693690cf88c2107d5ba3f8f61b70f37bd6f370644bb0bb477@group.calendar.google.com';
 
-    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startISO}/${endISO}&details=${description}&location=${location}&ctz=Europe/Belgrade&add=${guests}`;
+    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startISO}/${endISO}&details=${description}&location=${location}&ctz=Europe/Belgrade&src=${sharedCal}&gsid=true`;
 
     window.open(calUrl, '_blank');
     o.calendar_status = 'sent';
