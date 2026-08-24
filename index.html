@@ -456,7 +456,7 @@ function renderUserBar() {
   const roleClass = currentUser.role === 'admin' ? 'admin' : 'worker';
   bar.innerHTML = `
     <span class="user-name">👤 ${currentUser.full_name}</span>
-    <span class="user-role ${roleClass}">${currentUser.role}</span>
+    <span class="user-role ${roleClass}">${currentUser.role === 'admin' ? 'Admin' : 'Kolegë'}</span>
     <button class="logout-btn" onclick="doLogout()">Dil</button>
   `;
 }
