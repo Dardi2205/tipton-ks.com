@@ -335,6 +335,58 @@
     margin-top: 4px;
     letter-spacing: .5px;
   }
+
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .dash-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .dash-card .dash-n {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--copper-bright);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .dash-card .dash-l {
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .phone-link {
+    color: var(--teal);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .phone-link:hover { text-decoration: underline; }
+
+  .export-bar {
+    display: flex; gap: 10px; align-items: center;
+    margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .export-bar button {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: .5px;
+  }
+  .export-bar button:hover { color: var(--ink); border-color: var(--copper); }
 </style>
 </head>
 <body>
@@ -366,6 +418,8 @@
 
   <div class="user-bar" id="user-bar"></div>
 
+  <div class="dashboard" id="dashboard"></div>
+
   <div class="add-panel">
     <div class="add-panel-title">+ Shto porosi të re</div>
     <div class="add-grid">
@@ -386,6 +440,12 @@
   <div class="toolbar">
     <input id="search" placeholder="Kërko sipas emrit, telefonit, produktit ose adresës…" oninput="render()" />
     <span class="count-tag" id="search-count"></span>
+  </div>
+
+  <div class="export-bar">
+    <button onclick="exportToExcel()">📊 Eksporto në Excel</button>
+    <button onclick="printOrders()">🖨 Printo Porositë</button>
+    <button onclick="toggleSound()">🔔 Tingulli: <span id="sound-status">ON</span></button>
   </div>
 
   <div id="board" class="board">
@@ -869,7 +929,7 @@ function render() {
         <div class="card-name">${escapeHtml(o.name)}</div>
         <div class="card-product">${escapeHtml(o.product)}</div>
         <div class="card-meta">
-          ${o.phone ? `📞 ${escapeHtml(o.phone)}<br>` : ''}
+          ${o.phone ? `📞 <a class="phone-link" href="tel:${escapeHtml(o.phone)}">${escapeHtml(o.phone)}</a><br>` : ''}
           ${o.delivery ? `🚚 ${escapeHtml(o.delivery)}<br>` : ''}
           ${o.address ? `📍 ${escapeHtml(o.address)}<br>` : ''}
           ${o.delivery_date ? `🗓 ${o.delivery_date}${o.delivery_time ? ' ' + o.delivery_time : ''}` : ''}
@@ -943,10 +1003,105 @@ function render() {
     <div class="stat"><div class="n">${orders.length}</div><div class="l">Gjithsej</div></div>
     <div class="stat"><div class="n">${orders.filter(o=>o.status==='e_re').length}</div><div class="l">Të reja</div></div>
   `;
+
+  const now = Date.now();
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay()).getTime();
+  const todayOrders = orders.filter(o => o.ts >= todayStart).length;
+  const weekOrders = orders.filter(o => o.ts >= weekStart).length;
+  const newOrders = orders.filter(o => o.status === 'e_re').length;
+  const inProcess = orders.filter(o => o.status === 'ne_proces').length;
+  const ready = orders.filter(o => o.status === 'gati').length;
+  const delivered = orders.filter(o => o.status === 'perfunduar').length;
+
+  document.getElementById('dashboard').innerHTML = `
+    <div class="dash-card"><div class="dash-n">${todayOrders}</div><div class="dash-l">Sot</div></div>
+    <div class="dash-card"><div class="dash-n">${weekOrders}</div><div class="dash-l">Këtë javë</div></div>
+    <div class="dash-card"><div class="dash-n">${newOrders}</div><div class="dash-l">Të reja</div></div>
+    <div class="dash-card"><div class="dash-n">${inProcess}</div><div class="dash-l">Në proces</div></div>
+    <div class="dash-card"><div class="dash-n">${ready}</div><div class="dash-l">Gati</div></div>
+    <div class="dash-card"><div class="dash-n">${delivered}</div><div class="dash-l">Dorëzuar</div></div>
+  `;
+
+  checkNewOrders();
 }
 
 function escapeAttr(s) {
   return escapeHtml(s || '').replace(/"/g, '&quot;');
+}
+
+let soundEnabled = true;
+const orderSound = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczHjqR0teleFQ8ZJHO3a5hMiI+lcrYq2A0I0Ca0NyuYTMiQJrQ3K5hMyJ9nNHdsGE0I36b0t6xYTMjfaDS37FhMyN9oNLfsWEzI32g0t+xYTMjfaDS37FhMyN9oNLfsWEzI32g0t+xYTMjfaDS37FhMyN9oNLfsWEzI32g0t+xYTMjfaDS37FhMyN9oNLfsQ==');
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  document.getElementById('sound-status').textContent = soundEnabled ? 'ON' : 'OFF';
+}
+
+function playNotificationSound() {
+  if (soundEnabled) {
+    orderSound.currentTime = 0;
+    orderSound.play().catch(() => {});
+  }
+}
+
+let previousOrderCount = 0;
+
+function checkNewOrders() {
+  if (previousOrderCount > 0 && orders.length > previousOrderCount) {
+    playNotificationSound();
+    showToast('🔔 Porosi e re u shtua!');
+  }
+  previousOrderCount = orders.length;
+}
+
+function exportToExcel() {
+  if (orders.length === 0) { showToast('Nuk ka porosi për të eksportuar.'); return; }
+
+  let csv = 'ID,Emri,Telefoni,Produkti,Adresa,Dorëzimi,Datë,Status,Shtuar nga\n';
+  orders.forEach(o => {
+    const statusLabel = STATUSES.find(s => s.key === o.status)?.label || o.status;
+    csv += `"${o.id}","${o.name || ''}","${o.phone || ''}","${o.product || ''}","${o.address || ''}","${o.delivery || ''}","${o.delivery_date || ''} ${o.delivery_time || ''}","${statusLabel}","${o.added_by || ''}"\n`;
+  });
+
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `porosite-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Eksportimi u krye!');
+}
+
+function printOrders() {
+  const printContent = orders.map(o => {
+    const statusLabel = STATUSES.find(s => s.key === o.status)?.label || o.status;
+    return `
+      <div style="border:1px solid #ccc;padding:10px;margin:5px 0;border-radius:6px;">
+        <strong>${o.id}</strong> — ${statusLabel}<br>
+        <strong>Klienti:</strong> ${o.name}<br>
+        ${o.phone ? `<strong>Tel:</strong> ${o.phone}<br>` : ''}
+        <strong>Produkti:</strong> ${o.product}<br>
+        ${o.address ? `<strong>Adresa:</strong> ${o.address}<br>` : ''}
+        ${o.delivery_date ? `<strong>Data:</strong> ${o.delivery_date} ${o.delivery_time || ''}<br>` : ''}
+        ${o.added_by ? `<strong>Shtuar nga:</strong> ${o.added_by}` : ''}
+      </div>`;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>Porositë - Tipton KS</title></head>
+    <body>
+      <h2>Porositë - ${new Date().toLocaleDateString('sq-AL')}</h2>
+      <p>Gjithsej: ${orders.length} porosi</p>
+      ${printContent}
+    </body></html>
+  `);
+  win.document.close();
+  win.print();
 }
 
 function escapeHtml(s) {
