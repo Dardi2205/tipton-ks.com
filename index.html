@@ -516,7 +516,7 @@ function renderUserBar() {
   const roleClass = currentUser.role === 'admin' ? 'admin' : 'worker';
   bar.innerHTML = `
     <span class="user-name">👤 ${currentUser.full_name}</span>
-    <span class="user-role ${roleClass}">${currentUser.role === 'admin' ? 'Admin' : 'Kolegë'}</span>
+    <span class="user-role ${roleClass}">${currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'transporter' ? 'Transportier' : 'Kolegë'}</span>
     <button class="logout-btn" onclick="doLogout()">Dil</button>
   `;
 }
@@ -747,6 +747,11 @@ function moveOrder(id, dir) {
   const nextIdx = curStatusIdx + dir;
   if (nextIdx < 0 || nextIdx >= STATUSES.length) return;
   orders[idx].status = STATUSES[nextIdx].key;
+
+  if (STATUSES[nextIdx].key === 'perfunduar' && currentUser) {
+    orders[idx].delivered_by = currentUser.full_name;
+  }
+
   saveOrder(orders[idx]);
   render();
 
@@ -935,6 +940,7 @@ function render() {
           ${o.delivery_date ? `🗓 ${o.delivery_date}${o.delivery_time ? ' ' + o.delivery_time : ''}` : ''}
         </div>
         ${o.added_by ? `<div class="added-by">Shtuar nga: ${escapeHtml(o.added_by)}</div>` : ''}
+        ${o.delivered_by ? `<div class="added-by" style="color:var(--teal);">Dorëzuar nga: ${escapeHtml(o.delivered_by)}</div>` : ''}
         <div class="card-actions"></div>
       `;
       const actions = card.querySelector('.card-actions');
