@@ -757,7 +757,7 @@ function moveOrder(id, dir) {
 
   if (STATUSES[nextIdx].key === 'perfunduar') {
     const o = orders[idx];
-    const msg = `:white_check_mark: *Porosia u përfundua — ${o.id}\n*Klienti:* ${o.name}\n*Produkti:* ${o.product}`;
+    const msg = `:white_check_mark: *Porosia u përfundua — ${o.id}\n*Klienti:* ${o.name}\n*Produkti:* ${o.product}\n*Dorëzuar nga:* ${currentUser.full_name}`;
     fetch(SLACK_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -770,6 +770,16 @@ function moveOrder(id, dir) {
       render();
       showToast('Porosia u përfundua dhe u hoq nga lista.');
     }, 5000);
+  }
+
+  if (STATUSES[nextIdx].key === 'gati') {
+    const o = orders[idx];
+    const msg = `:truck: *Porosia është gati për dorëzim!*\n*ID:* ${o.id}\n*Klienti:* ${o.name}\n*Telefoni:* ${o.phone || '-'}\n*Adresa:* ${o.address || '-'}\n*Produkti:* ${o.product}`;
+    fetch(SLACK_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: msg })
+    }).catch(() => {});
   }
 }
 
