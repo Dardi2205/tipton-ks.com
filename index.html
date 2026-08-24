@@ -241,11 +241,116 @@
     max-width: 90vw; text-align: center;
   }
   .toast.show { opacity: 1; }
+
+  .login-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .login-overlay.hidden { display: none; }
+  .login-box {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px 28px;
+    width: 340px;
+    max-width: 90vw;
+  }
+  .login-box h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px; margin: 0 0 4px;
+  }
+  .login-box .login-sub {
+    font-size: 12px; color: var(--ink-dim);
+    margin-bottom: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .login-box input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 12px;
+    outline: none;
+  }
+  .login-box input:focus { border-color: var(--copper); }
+  .login-box .login-btn {
+    width: 100%;
+    background: var(--copper);
+    color: #14201b;
+    border: none;
+    border-radius: 6px;
+    padding: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .login-box .login-btn:hover { background: var(--copper-bright); }
+  .login-box .login-err {
+    color: var(--red);
+    font-size: 12px;
+    margin-top: 8px;
+    min-height: 18px;
+  }
+
+  .user-bar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 18px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+  }
+  .user-bar .user-name { color: var(--copper-bright); font-weight: 600; }
+  .user-bar .user-role {
+    font-size: 10px; padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .user-bar .user-role.admin { background: rgba(192,133,82,0.2); color: var(--copper); border: 1px solid rgba(192,133,82,0.4); }
+  .user-bar .user-role.worker { background: rgba(95,168,154,0.15); color: var(--teal); border: 1px solid rgba(95,168,154,0.4); }
+  .user-bar .logout-btn {
+    margin-left: auto;
+    background: transparent; border: 1px solid var(--line);
+    color: var(--ink-dim); border-radius: 5px;
+    padding: 5px 10px; cursor: pointer; font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: .5px;
+  }
+  .user-bar .logout-btn:hover { color: var(--red); border-color: var(--red); }
+
+  .card .added-by {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: var(--ink-dim);
+    margin-top: 4px;
+    letter-spacing: .5px;
+  }
 </style>
 </head>
 <body>
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <h2>⚽ Tipton KS</h2>
+    <div class="login-sub">Hyr në panel</div>
+    <input id="login-user" placeholder="Username" autocomplete="username" />
+    <input id="login-pass" type="password" placeholder="Fjalëkalimi" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="login-btn" onclick="doLogin()">Hyr</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
 <div class="grain"></div>
-<div class="wrap">
+<div class="wrap" id="main-app" style="display:none">
   <header>
     <div>
       <div class="brand-mark">Panel i porosive</div>
@@ -258,6 +363,8 @@
     <div class="sdot"></div>
     Çdo porosi e re dërgohet automatikisht te kanali Slack #all-puna
   </div>
+
+  <div class="user-bar" id="user-bar"></div>
 
   <div class="add-panel">
     <div class="add-panel-title">+ Shto porosi të re</div>
@@ -293,6 +400,70 @@ const SUPABASE_URL = 'https://audsawlpgaqdzpqfcviu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1ZHNhd2xwZ2FxZHpwcWZjdml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MjQxNzcsImV4cCI6MjEwMDUwMDE3N30.8ZD6LN5rwOtx-CqVfSzi8mpd63mqLtldJEdEg5fXPAw';
 
 const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+
+async function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value.trim();
+  const errEl = document.getElementById('login-err');
+  if (!u || !p) { errEl.textContent = 'Plotëso të gjitha fushat.'; return; }
+
+  try {
+    const { data, error } = await _supabase.from('users').select('*').eq('username', u).eq('password_hash', p).limit(1);
+    if (error || !data || data.length === 0) {
+      errEl.textContent = 'Username ose fjalëkalim i gabuar.';
+      return;
+    }
+    currentUser = data[0];
+    localStorage.setItem('tipton_user', JSON.stringify(currentUser));
+    document.getElementById('login-overlay').classList.add('hidden');
+    document.getElementById('main-app').style.display = '';
+    renderUserBar();
+    loadOrders();
+  } catch(e) {
+    errEl.textContent = 'Gabim lidhjeje. Provo përsëri.';
+  }
+}
+
+function doLogout() {
+  currentUser = null;
+  localStorage.removeItem('tipton_user');
+  document.getElementById('login-overlay').classList.remove('hidden');
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-err').textContent = '';
+}
+
+function checkLogin() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('tipton_user'));
+    if (saved && saved.username) {
+      currentUser = saved;
+      document.getElementById('login-overlay').classList.add('hidden');
+      document.getElementById('main-app').style.display = '';
+      renderUserBar();
+checkLogin();
+      return;
+    }
+  } catch(e) {}
+}
+
+function renderUserBar() {
+  if (!currentUser) return;
+  const bar = document.getElementById('user-bar');
+  const roleClass = currentUser.role === 'admin' ? 'admin' : 'worker';
+  bar.innerHTML = `
+    <span class="user-name">👤 ${currentUser.full_name}</span>
+    <span class="user-role ${roleClass}">${currentUser.role}</span>
+    <button class="logout-btn" onclick="doLogout()">Dil</button>
+  `;
+}
+
+function isAdmin() {
+  return currentUser && currentUser.role === 'admin';
+}
 
 const STATUSES = [
   { key: 'e_re',       label: 'E re',                color: 'var(--amber)' },
@@ -491,6 +662,7 @@ function addOrder() {
     slack_status: 'idle',
     calendar_status: 'idle',
     calendar_event_id: null,
+    added_by: currentUser ? currentUser.full_name : '',
     ts: Date.now()
   };
   orders.unshift(newOrder);
@@ -703,6 +875,7 @@ function render() {
           ${o.address ? `📍 ${escapeHtml(o.address)}<br>` : ''}
           ${o.delivery_date ? `🗓 ${o.delivery_date}${o.delivery_time ? ' ' + o.delivery_time : ''}` : ''}
         </div>
+        ${o.added_by ? `<div class="added-by">Shtuar nga: ${escapeHtml(o.added_by)}</div>` : ''}
         <div class="card-actions"></div>
       `;
       const actions = card.querySelector('.card-actions');
@@ -735,23 +908,25 @@ function render() {
       slackBtn.onclick = () => sendOrderToSlack(o.id);
       actions.appendChild(slackBtn);
 
-      if (pendingDeleteId === o.id) {
-        const confirmBtn = document.createElement('button');
-        confirmBtn.className = 'mini-btn confirm-danger';
-        confirmBtn.textContent = 'Konfirmo fshirjen';
-        confirmBtn.onclick = () => deleteOrder(o.id);
-        const cancelBtn = document.createElement('button');
-        cancelBtn.className = 'mini-btn';
-        cancelBtn.textContent = 'Anulo';
-        cancelBtn.onclick = () => cancelDelete();
-        actions.appendChild(confirmBtn);
-        actions.appendChild(cancelBtn);
-      } else {
-        const del = document.createElement('button');
-        del.className = 'mini-btn danger';
-        del.textContent = 'Fshi';
-        del.onclick = () => requestDelete(o.id);
-        actions.appendChild(del);
+      if (isAdmin()) {
+        if (pendingDeleteId === o.id) {
+          const confirmBtn = document.createElement('button');
+          confirmBtn.className = 'mini-btn confirm-danger';
+          confirmBtn.textContent = 'Konfirmo fshirjen';
+          confirmBtn.onclick = () => deleteOrder(o.id);
+          const cancelBtn = document.createElement('button');
+          cancelBtn.className = 'mini-btn';
+          cancelBtn.textContent = 'Anulo';
+          cancelBtn.onclick = () => cancelDelete();
+          actions.appendChild(confirmBtn);
+          actions.appendChild(cancelBtn);
+        } else {
+          const del = document.createElement('button');
+          del.className = 'mini-btn danger';
+          del.textContent = 'Fshi';
+          del.onclick = () => requestDelete(o.id);
+          actions.appendChild(del);
+        }
       }
 
       col.appendChild(card);
